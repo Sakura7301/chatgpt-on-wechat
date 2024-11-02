@@ -1,3 +1,4 @@
+import datetime 
 from common.expired_dict import ExpiredDict
 from common.log import logger
 from config import conf
@@ -5,10 +6,14 @@ from config import conf
 
 class Session(object):
     def __init__(self, session_id, system_prompt=None):
+        # 获取当前时间  
+        tz = datetime.timezone(datetime.timedelta(hours=8))  
+        current_time = datetime.datetime.now(tz).strftime('%Y年%m月%d日 %H:%M:%S')
+
         self.session_id = session_id
         self.messages = []
         if system_prompt is None:
-            self.system_prompt = conf().get("character_desc", "")
+            self.system_prompt = conf().get("character_desc", "") + "当前时间是"+ current_time +"，有任何人问'今天的时间'或者'现在的时间'，可以使用它；当然如果对方想要获取当天的某种信息(包括但不限于、黄历、星座运势、天气、实时热点新闻)；那么你需要使用" + current_time + "这个时间去查询对应的(包括但不限于、黄历、星座运势、天气、热点新闻)相关事情，然后回复；"
         else:
             self.system_prompt = system_prompt
 

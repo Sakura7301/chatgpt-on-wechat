@@ -9,21 +9,19 @@ class LinkSummary:
     def __init__(self):
         pass
 
-    def summary_file(self, file_path: str, app_code: str):
+    def summary_file(self, file_path: str):
         file_body = {
             "file": open(file_path, "rb"),
             "name": file_path.split("/")[-1],
-            "app_code": app_code
         }
         url = self.base_url() + "/v1/summary/file"
         res = requests.post(url, headers=self.headers(), files=file_body, timeout=(5, 300))
         return self._parse_summary_res(res)
 
-    def summary_url(self, url: str, app_code: str):
+    def summary_url(self, url: str):
         url = html.unescape(url)
         body = {
-            "url": url,
-            "app_code": app_code
+            "url": url
         }
         res = requests.post(url=self.base_url() + "/v1/summary/url", headers=self.headers(), json=body, timeout=(5, 180))
         return self._parse_summary_res(res)
