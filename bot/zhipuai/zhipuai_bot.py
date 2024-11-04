@@ -60,7 +60,7 @@ class ZHIPUAIBot(Bot, ZhipuAIImage):
                 qi_gua_num_result = GetGuaShu(query)
                 if qi_gua_num_result and qi_gua_num_result[2] is True:
                     # 使用了随机数，需要进行说明
-                    gen_random_num_str = f"卜卦要准确提供3个数字哦，不然会影响准确率哒,下次别忘咯~\n这次我就先用随机数{gen_random_num}帮你起卦叭~\n"
+                    gen_random_num_str = f"卜卦要准确提供3个数字哦，不然会影响准确率哒,下次别忘咯~\n这次我就先用随机数{qi_gua_num_result[0]}帮你起卦叭~\n"
                 else:
                     gen_random_num_str = ""
                 # 数字

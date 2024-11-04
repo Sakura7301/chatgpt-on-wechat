@@ -193,44 +193,69 @@ def get_num_from_text(text):
 
     return num 
 
-def GetGuaShu(query):
+def GetGuaShu(query):  
     """  
-    提取用户输入中的三位数字和问题文本  
+    提取用户输入中头部或尾部的三位数字和问题文本  
     
     Args:  
         query: 用户输入的字符串  
     
     Returns:  
-        tuple: (数字, 问题文本) 或 (None, 原文本) 如果没找到合法的三位数  
+        tuple: (数字, 问题文本, 是否使用随机数)   
     """  
     # 移除所有空格  
-    query_no_space = ''.join(query.split())
-
-    # 是否使用随机数标志
-    gen_random_flag = False
-
-    # 查找连续的三个数字  
-    match = re.search(r'\d+', query_no_space) 
-    if match:  
-        number = int(match.group()) 
-        # 检查是否在有效范围内(100-999)  
-        if number < 100 or number > 999:
-            # 修改随机数标志
-            gen_random_flag = True
+    query_no_space = ''.join(query.split())  
     
-    if gen_random_flag is True:
-        # 获取当前时间戳（微秒级）  
+    # 是否使用随机数标志  
+    gen_random_flag = False  
+    number = None  
+    
+    # 匹配开头或结尾的三位数字（排除中间的三位数字）  
+    # (?:^|[^\d])表示字符串开头或非数字字符  
+    # (?=$|[^\d])表示字符串结尾或非数字字符  
+    start_pattern = r'(?:^|[^\d])(\d{3})(?=$|[^\d])'  
+    
+    matches = re.finditer(start_pattern, query_no_space)  
+    matches = list(matches)  
+    
+    if matches:  
+        # 获取所有匹配结果  
+        potential_numbers = []  
+        for match in matches:  
+            num = int(match.group(1))  
+            # 检查数字范围  
+            if 100 <= num <= 999:  
+                # 检查是否在开头或结尾  
+                start_pos = match.start(1)  
+                end_pos = match.end(1)  
+                
+                # 判断是否在开头或结尾（允许最多一个符号的偏移）  
+                is_at_start = start_pos <= 1  
+                is_at_end = end_pos >= len(query_no_space) - 1  
+                
+                if is_at_start or is_at_end:  
+                    potential_numbers.append(num)  
+        
+        if potential_numbers:  
+            number = potential_numbers[0]  # 使用第一个有效的数字  
+        else:  
+            gen_random_flag = True  
+    else:  
+        gen_random_flag = True  
+    
+    if gen_random_flag:  
+        # 获取当前时间戳（微秒级）生成随机数  
         current_time = time.time()  
-        # 取小数部分后的6位  
         microseconds = int(str(current_time).split('.')[1][:6])  
-        # 映射到100-999范围  
-        gen_random_num = microseconds % 900 + 100
-        number = gen_random_num
+        number = microseconds % 900 + 100  
     
-    # 去除问题中的数字
-    question = re.sub(r'\d{3}', '', query)
-
-    return number, question, gen_random_flag
+    # 去除问题中的数字（只替换找到的那个三位数）  
+    if number is not None:  
+        question = re.sub(rf'\b{number}\b', '', query)  
+    else:  
+        question = query  
+        
+    return number, question.strip(), gen_random_flag
 
 
 def FormatZhanBuReply(gen_random_num_str: str,   
@@ -408,6 +433,47 @@ def SuanGuaRquest(query):
     divination_keywords = ['算算', '占卜' ,'开卦', '卜卦', '算卦', '算一下']
     return any(keyword in query for keyword in divination_keywords)
 
+
+# 修改时辰计算方式  
+def get_shichen(hour):  
+    if hour == 23 or hour == 0:  
+        shichen = 1  # 子时  
+    elif hour >= 1 and hour < 3:  
+        shichen = 2  # 丑时  
+    elif hour >= 3 and hour < 5:  
+        shichen = 3  # 寅时  
+    elif hour >= 5 and hour < 7:  
+        shichen = 4  # 卯时  
+    elif hour >= 7 and hour < 9:  
+        shichen = 5  # 辰时  
+    elif hour >= 9 and hour < 11:  
+        shichen = 6  # 巳时  
+    elif hour >= 11 and hour < 13:  
+        shichen = 7  # 午时  
+    elif hour >= 13 and hour < 15:  
+        shichen = 8  # 未时  
+    elif hour >= 15 and hour < 17:  
+        shichen = 9  # 申时  
+    elif hour >= 17 and hour < 19:  
+        shichen = 10  # 酉时  
+    elif hour >= 19 and hour < 21:  
+        shichen = 11  # 戌时  
+    else:  # hour >= 21 and hour < 23  
+        shichen = 12  # 亥时  
+    
+    return shichen   
+
+def ChangeYao(bengua_lines, move_line):  
+    biangua_lines = bengua_lines.copy()
+    index = move_line - 1
+    # 变动指定的爻  
+    if biangua_lines[index] == 'yin':  
+        biangua_lines[index] = 'yang'  
+    elif biangua_lines[index] == 'yang':  
+        biangua_lines[index] = 'yin'  
+    
+    return biangua_lines  
+
 def MeiHuaXinYi(value):  
     """  
     梅花易数卜卦函数。  
@@ -465,6 +531,7 @@ def MeiHuaXinYi(value):
 
     # 3. 计算动爻数  
     digit_sum = hundreds_digit + tens_digit + units_digit  
+    print(f"{hundreds_digit} + {tens_digit} + {units_digit} = {digit_sum}")
 
     # 获取当前时间  
     now = datetime.now()  
@@ -488,14 +555,16 @@ def MeiHuaXinYi(value):
         12: '亥时'  
     }  
 
-    # 修改时辰计算方式  
-    shichen_index = (hour % 24) // 2  
-    shichen = shichen_values[shichen_index]  
+    # 获取时辰数
+    shichen = get_shichen(hour)  
     shichen_name = shichen_names[shichen]  
 
     total = digit_sum + shichen  
     moving_line = total % 6  
-    moving_line = moving_line if moving_line != 0 else 6  
+    print(f"{total} = {digit_sum} + {shichen}")
+    print(f"{moving_line} = {total} % 6 ")
+    if moving_line == 0:
+        moving_line = 6
 
     # 4. 得到本卦  
     try:  
@@ -529,17 +598,13 @@ def MeiHuaXinYi(value):
     hugua_name = f"互见{hugua_upper_name}{hugua_lower_name}({hugua_name_pro})"  
 
     # 6. 得到变卦  
-    biangua_lines = bengua_lines.copy()  
-    index = 6 - moving_line  # 修正动爻的索引  
-
-    if 0 <= index < 6:  
-        # 阴阳互变  
-        biangua_lines[index] = 'yin' if biangua_lines[index] == 'yang' else 'yang'  
-    else:  
-        raise ValueError("动爻数计算错误。")  
-
+    biangua_lines = ChangeYao(bengua_lines, moving_line) 
+    print("bengua_lines:", bengua_lines)
+    print("biangua_lines:", biangua_lines)
     biangua_lower_lines = biangua_lines[:3]  
-    biangua_upper_lines = biangua_lines[3:]  
+    print("biangua_lower_lines:", biangua_lower_lines)
+    biangua_upper_lines = biangua_lines[3:]
+    print("biangua_upper_lines:", biangua_upper_lines)  
 
     biangua_lower_num, biangua_lower_name = get_trigram_from_lines(biangua_lower_lines)  
     biangua_upper_num, biangua_upper_name = get_trigram_from_lines(biangua_upper_lines)  
@@ -549,6 +614,10 @@ def MeiHuaXinYi(value):
     # 7. 获取动爻，六爻顺序为自下而上，索引为0表示初爻，动爻是 moving_line  
     dong_yao = ['初', '二', '三', '四', '五', '上'][moving_line - 1]  
     dong_yao_full = f"{dong_yao}"  
+
+    logger.info(f"上卦数:{upper_num}   下卦数:{lower_sum}")
+    logger.info(f"时  辰:{shichen_name}   时辰数:{shichen}")
+    logger.info(f"动爻数:{moving_line}   动  爻:{dong_yao}")
 
     # 8. 获取时辰信息  
     datetime_str = f"{now.year}-{now.month}-{now.day} {now.hour}:{now.minute}:{now.second} {shichen_name}"  
@@ -569,7 +638,7 @@ def MeiHuaXinYi(value):
     biangua_wuxing_result = WuXingCalculator(biangua_upper_num, biangua_lower_num, dong_yao_flag, nongli_month)
 
     # 计算应期
-    ying_qi = (upper_num + lower_num + shichen_index)
+    ying_qi = (upper_num + lower_num + shichen)
 
     fang_wei = get_bagua_direction(upper_num)
 
