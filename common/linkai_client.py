@@ -86,12 +86,15 @@ def start(channel):
 def _build_config():
     local_conf = conf()
     config = {
+        "duan_yi_tian_ji_image_path": local_conf.get("duan_yi_tian_ji_image_path"),
+        "mei_hua_yi_shu_image_path": local_conf.get("mei_hua_yi_shu_image_path"),
+        "san_ming_zhan_image_path": local_conf.get("san_ming_zhan_image_path"),
+        "zhen_wu_ling_qian_image_path": local_conf.get("zhen_wu_ling_qian_image_path"),
         "linkai_app_code": local_conf.get("linkai_app_code"),
         "single_chat_prefix": local_conf.get("single_chat_prefix"),
         "single_chat_reply_prefix": local_conf.get("single_chat_reply_prefix"),
         "single_chat_reply_suffix": local_conf.get("single_chat_reply_suffix"),
         "group_chat_prefix": local_conf.get("group_chat_prefix"),
-        "he_feng_weather_api_key": local_conf.get("he_feng_weather_api_key"),
         "group_chat_reply_prefix": local_conf.get("group_chat_reply_prefix"),
         "group_chat_reply_suffix": local_conf.get("group_chat_reply_suffix"),
         "group_name_white_list": local_conf.get("group_name_white_list"),

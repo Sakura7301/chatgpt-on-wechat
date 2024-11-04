@@ -1,3 +1,4 @@
+from common.log import logger
 
 # -*- coding: utf-8 -*-
 """
@@ -110,9 +111,9 @@ class LogManager:
         """输出日志"""  
         if cls._enabled:  
             if color:  
-                print(f"{color}{message}{Colors.ENDC}")  
+                logger.info(f"{color}{message}{Colors.ENDC}")  
             else:  
-                print(message)  
+                logger.info(message)  
 
 
 # 创建全局日志管理器实例  

@@ -1,11 +1,15 @@
-
-from datetime import datetime  
-import pytz  
-from PIL import Image, ImageDraw, ImageFont  
 import os  
-from PIL import ImageColor, ImageFilter  
-import math  
 import io  
+import math  
+import pytz  
+from config import conf 
+from datetime import datetime  
+from common.log import logger
+from PIL import Image, ImageDraw, ImageFont, ImageColor, ImageFilter
+
+
+
+config = conf()  
 
 def get_current_filename():  
     """  
@@ -14,7 +18,8 @@ def get_current_filename():
     """  
     beijing_tz = pytz.timezone('Asia/Shanghai')  
     current_time = datetime.now(beijing_tz)  
-    return f"/home/alex/chatgpt-on-wechat/XuanXue/SanMingZhan/image/pai_pan_{current_time.year}_{current_time.month}_{current_time.day}_{current_time.hour}.png"  
+    image_path = config.get("san_ming_zhan_image_path") 
+    return f"{image_path}/pai_pan_{current_time.year}_{current_time.month}_{current_time.day}_{current_time.hour}.png"  
 
 def get_rotation_start_position(hour):  
     """  
@@ -135,7 +140,7 @@ def create_image_from_grid(grid, current_time, shichen_name, output_path):
             title_font = main_font = sub_font = center_font = ImageFont.load_default()  
             
     except Exception as e:  
-        print(f"加载字体时出错: {e}")  
+        logger.info(f"加载字体时出错: {e}")  
         title_font = main_font = sub_font = center_font = ImageFont.load_default()  
 
     # 绘制外框  
@@ -152,7 +157,7 @@ def create_image_from_grid(grid, current_time, shichen_name, output_path):
         draw.text((60, 120), f"当前时间：{current_time}", font=sub_font, fill=secondary_color)  
         draw.text((60, 160), f"当前时辰：{shichen_name}", font=sub_font, fill=secondary_color)  
     except Exception as e:  
-        print(f"绘制标题时出错: {e}")  
+        logger.info(f"绘制标题时出错: {e}")  
 
     # 绘制九宫格  
     start_y = 220  
@@ -225,13 +230,13 @@ def create_image_from_grid(grid, current_time, shichen_name, output_path):
                                             text_font,  
                                             text_color)  
                     except Exception as e:  
-                        print(f"绘制文字时出错: {e}")  
+                        logger.info(f"绘制文字时出错: {e}")  
 
     # 保存图片  
     try:  
         image.save(output_path, quality=95)  
     except Exception as e:  
-        print(f"保存图片时出错: {e}")  
+        logger.info(f"保存图片时出错: {e}")  
         image = image.convert('RGB')  
         image.save(output_path, quality=95)  
     
@@ -246,13 +251,13 @@ def SanMingJiuGong():
     
     # 检查文件是否已存在  
     if os.path.exists(current_filename):  
-        print(f"找到已存在的图片：{current_filename}")  
+        logger.info(f"找到已存在的图片：{current_filename}")  
         try:  
             with open(current_filename, 'rb') as f:  
                 image_content = f.read()  
             return io.BytesIO(image_content)  
         except Exception as e:  
-            print(f"读取已存在图片失败：{e}")  
+            logger.info(f"读取已存在图片失败：{e}")  
             # 如果读取失败，继续执行生成新图片的流程  
     
     # 基础数据  
@@ -292,10 +297,10 @@ def SanMingJiuGong():
     try:  
         with open(current_filename, 'rb') as f:  
             image_content = f.read()  
-        print(f"成功生成并读取新图片：{current_filename}")  
+        logger.info(f"成功生成并读取新图片：{current_filename}")  
         return io.BytesIO(image_content)  
     except Exception as e:  
-        print(f"读取新生成的图片失败：{e}")  
+        logger.info(f"读取新生成的图片失败：{e}")  
         return None  
 
 def get_current_shichen():  

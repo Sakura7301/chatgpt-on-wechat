@@ -3,10 +3,15 @@ import io
 import pytz 
 import re 
 import emoji  
+import time
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from XuanXue.MeiHuaYiShu.wuxing_calculator import WuXingCalculator
 from zhdate import ZhDate   
+from config import conf 
+from common.log import logger
+
+config = conf()  
 
 def create_font():  
     """  
@@ -26,10 +31,10 @@ def create_font():
             try:  
                 return ImageFont.truetype(font_path, font_size)  
             except Exception as e:  
-                print(f"加载字体 {font_path} 失败: {e}")  
+                logger.info(f"加载字体 {font_path} 失败: {e}")  
                 continue  
     
-    print("警告：未能加载中文字体，将使用默认字体")  
+    logger.info("警告：未能加载中文字体，将使用默认字体")  
     return ImageFont.load_default()  
 
 def get_text_size(text, font):  
@@ -68,7 +73,7 @@ def auto_wrap_text(text, font, max_width):
     
     return lines  
 
-def text_to_image(final_reply, query):  
+def SaveGuaLi(final_reply, query):  
     """  
     将文本转换为图片  
     """  
@@ -83,8 +88,8 @@ def text_to_image(final_reply, query):
         # 创建字体对象  
         font = create_font()  
         
-        # 确保存储目录存在  
-        save_dir = "XuanXue/MeiHuaYiShu/image/"  
+        # 确保存储目录存在       
+        save_dir = config.get("mei_hua_yi_shu_image_path") 
         os.makedirs(save_dir, exist_ok=True)  
         
         # 生成文件名  
@@ -160,12 +165,12 @@ def text_to_image(final_reply, query):
         try:  
             image.save(full_path, quality=95)  
         except Exception as e:  
-            print(f"保存图片时出错: {e}")  
+            logger.info(f"保存图片时出错: {e}")  
             image = image.convert('RGB')  
             image.save(full_path, quality=95)  
 
     except Exception as e:  
-        print(f"生成图片时出错: {e}")  
+        logger.info(f"生成图片时出错: {e}")  
         raise  
 
 def get_num_from_text(text):  
@@ -188,7 +193,7 @@ def get_num_from_text(text):
 
     return num 
 
-def extract_number_and_question(query):  
+def GetGuaShu(query):
     """  
     提取用户输入中的三位数字和问题文本  
     
@@ -199,18 +204,132 @@ def extract_number_and_question(query):
         tuple: (数字, 问题文本) 或 (None, 原文本) 如果没找到合法的三位数  
     """  
     # 移除所有空格  
-    query_no_space = ''.join(query.split())  
-    
+    query_no_space = ''.join(query.split())
+
+    # 是否使用随机数标志
+    gen_random_flag = False
+
     # 查找连续的三个数字  
-    match = re.search(r'\d+', query_no_space)  
-    
+    match = re.search(r'\d+', query_no_space) 
     if match:  
-        number = int(match.group())  
+        number = int(match.group()) 
         # 检查是否在有效范围内(100-999)  
-        if 100 <= number <= 999:  
-            return number, query_no_space  
+        if number < 100 or number > 999:
+            # 修改随机数标志
+            gen_random_flag = True
     
-    return None, query_no_space  
+    if gen_random_flag is True:
+        # 获取当前时间戳（微秒级）  
+        current_time = time.time()  
+        # 取小数部分后的6位  
+        microseconds = int(str(current_time).split('.')[1][:6])  
+        # 映射到100-999范围  
+        gen_random_num = microseconds % 900 + 100
+        number = gen_random_num
+    
+    # 去除问题中的数字
+    question = re.sub(r'\d{3}', '', query)
+
+    return number, question, gen_random_flag
+
+
+def FormatZhanBuReply(gen_random_num_str: str,   
+                          question: str,   
+                          number: str,   
+                          result: dict,   
+                          reply_content: dict) -> str:  
+    """  
+    格式化占卜结果回复  
+    
+    Args:  
+        gen_random_num_str (str): 生成的随机数字符串  
+        question (str): 用户的问题  
+        number (str): 占卜数字  
+        result (dict): 占卜结果字典，包含以下键：  
+            - shichen_info: 时辰信息  
+            - wang_shuai: 旺衰信息  
+            - ben_gua: 本卦  
+            - ben_gua_sheng_ke: 本卦生克  
+            - ben_gua_ji_xiong: 本卦吉凶  
+            - dong_yao: 动爻  
+            - hu_gua: 互卦  
+            - bian_gua: 变卦  
+            - bian_gua_sheng_ke: 变卦生克  
+            - bian_gua_ji_xiong: 变卦吉凶  
+            - fang_wei: 方位  
+            - ying_qi: 应期  
+        reply_content (dict): 回复内容字典，包含：  
+            - content: 解析内容  
+    
+    Returns:  
+        str: 格式化后的占卜结果字符串  
+    """  
+
+    try:  
+        # 验证必需的键是否存在  
+        required_keys = [  
+            'shichen_info', 'wang_shuai', 'ben_gua',   
+            'ben_gua_sheng_ke', 'ben_gua_ji_xiong',  
+            'dong_yao', 'hu_gua', 'bian_gua',
+            'bian_gua_sheng_ke', 'bian_gua_ji_xiong', 'fang_wei',
+            'ying_qi'  
+        ]  
+        
+        if not all(key in result for key in required_keys):  
+            missing_keys = [key for key in required_keys if key not in result]  
+            raise ValueError(f"结果字典缺少必需的键: {missing_keys}")  
+
+        # 保持占卜结果模板  
+        prompt = f"""{gen_random_num_str}占卜结果出来啦~😸🔮\n问题：{question}\n数字：{number}\n时间：{result['shichen_info']}\n占卜结果:\n旺衰：{result['wang_shuai']}\n[主卦] {result['ben_gua']}   {result['ben_gua_sheng_ke']}   [{result['ben_gua_ji_xiong']}]\n[{result['dong_yao']}]爻动   {result['hu_gua']}\n[变卦] {result['bian_gua']}   {result['bian_gua_sheng_ke']}   [{result['bian_gua_ji_xiong']}]\n方位：{result['fang_wei']}    应期：{result['ying_qi']}\n解析：\n{reply_content['content']}\n(解读仅供参考哦，我们还是要活在当下嘛~🐾)"""
+        
+        return prompt  
+
+    except Exception as e:  
+        logger.error(f"获取占卜结果出错：{e}")  
+        raise
+
+
+def GenZhanBuCueWord(result: dict, question: str) -> str:  
+    """  
+    生成占卜解读的提示词，保持原有格式和换行  
+    
+    Args:  
+        result (dict): 占卜结果字典，包含以下键：  
+            - wang_shuai: 旺衰信息  
+            - ben_gua: 本卦  
+            - ben_gua_sheng_ke: 本卦生克  
+            - ben_gua_ji_xiong: 本卦吉凶  
+            - hu_gua: 互卦  
+            - bian_gua: 变卦  
+            - bian_gua_sheng_ke: 变卦生克  
+            - bian_gua_ji_xiong: 变卦吉凶  
+            - dong_yao: 动爻  
+        question (str): 用户的问题  
+    
+    Returns:  
+        str: 格式化后的提示词  
+    """  
+    try:  
+        # 验证必需的键是否存在  
+        required_keys = [  
+            'wang_shuai', 'ben_gua', 'ben_gua_sheng_ke',   
+            'ben_gua_ji_xiong', 'hu_gua', 'bian_gua',  
+            'bian_gua_sheng_ke', 'bian_gua_ji_xiong', 'dong_yao'  
+        ]  
+        
+        if not all(key in result for key in required_keys):  
+            missing_keys = [key for key in required_keys if key not in result]  
+            raise ValueError(f"结果字典缺少必需的键: {missing_keys}")  
+
+        # 保持原有格式的提示词模板  
+        prompt = f"""根据现在的月份，月令旺衰情况是：{result['wang_shuai']}；我的卦象是：{result['ben_gua']} {result['ben_gua_sheng_ke']} {result['ben_gua_ji_xiong']} 、{result['hu_gua']}、{result['bian_gua']}  {result['bian_gua_sheng_ke']} {result['bian_gua_ji_xiong']}，动爻是{result['dong_yao']}；在梅花易数中，主卦代表事情的开始，互卦代表事情的发展过程，变卦代表事情的结果。我想要占卜的问题是{question}；我需要你结合客户的问题和我提供给你的卦象、生克情况，吉凶，同时参考易经中对卦象的描述，做一个简洁明了且易于理解的解读并回复给我。记住，不要复述我给你的卦象，直接用易于理解的语言描述占卜的结果即可，不要长篇大论，同时，可以给一些合理的建议，100个汉字以内即可。最后，你需要说明，本卦对应爻发动之后的爻辞"""  
+        
+        return prompt  
+
+    except Exception as e:  
+        logger.error(f"生成占卜提示词时出错：{e}")  
+        raise
+
 
 def get_bagua_direction(upper_gua_num):  
     """  
@@ -281,8 +400,13 @@ def get_lunar_month(date_str=None):
         return lunar_date.lunar_month  
     
     except Exception as e:  
-        print(f"转换出错：{str(e)}")  
+        logger.info(f"转换出错：{str(e)}")  
         return None   
+
+def SuanGuaRquest(query):
+    # 定义占卜关键词列表
+    divination_keywords = ['算算', '占卜' ,'开卦', '卜卦', '算卦', '算一下']
+    return any(keyword in query for keyword in divination_keywords)
 
 def MeiHuaXinYi(value):  
     """  
@@ -471,19 +595,19 @@ def MeiHuaXinYi(value):
 def run():  
     num = 746  
     result = MeiHuaXinYi(num)  
-    print("报数：", num)  
-    # print(result)
+    logger.info("报数：", num)  
+    # logger.info(result)
     if result:  
-        print("时间", result["shichen_info"])  
-        print("旺衰：", result["wang_shuai"])
-        print("本卦：", result["ben_gua"], ",", result["ben_gua_sheng_ke"], ",", result['ben_gua_ji_xiong']) 
-        print("方位：", result["fang_wei"])
-        print("互卦：", result["hu_gua"])  
-        print("变卦：", result["bian_gua"], ",", result["bian_gua_sheng_ke"], ",", result['bian_gua_ji_xiong']) 
-        print("动爻：", result["dong_yao"]) 
-        print("应期：", result["ying_qi"])
+        logger.info("时间", result["shichen_info"])  
+        logger.info("旺衰：", result["wang_shuai"])
+        logger.info("本卦：", result["ben_gua"], ",", result["ben_gua_sheng_ke"], ",", result['ben_gua_ji_xiong']) 
+        logger.info("方位：", result["fang_wei"])
+        logger.info("互卦：", result["hu_gua"])  
+        logger.info("变卦：", result["bian_gua"], ",", result["bian_gua_sheng_ke"], ",", result['bian_gua_ji_xiong']) 
+        logger.info("动爻：", result["dong_yao"]) 
+        logger.info("应期：", result["ying_qi"])
     else:  
-        print("输入的数字不在指定范围内。")  
+        logger.info("输入的数字不在指定范围内。")  
 
 
 if __name__ == "__main__":  

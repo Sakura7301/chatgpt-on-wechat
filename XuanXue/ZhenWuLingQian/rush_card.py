@@ -1,5 +1,7 @@
 import random  
 import time  
+from common.log import logger
+
 
 class CardDeck:  
     def __init__(self):  
@@ -16,7 +18,7 @@ class CardDeck:
         seed = int(time.time() * 1000000) % (2**32)  
         random.seed(seed)  
         random.shuffle(self.cards)  
-        print(f"洗牌完成！使用种子：{seed}")  
+        logger.info(f"洗牌完成！使用种子：{seed}")  
     
     # 抽牌
     def draw_card(self, n):  
@@ -39,40 +41,40 @@ def test_card_deck():
     """  
     测试函数  
     """  
-    print("=== 开始测试 ===")  
+    logger.info("=== 开始测试 ===")  
     
     # 创建卡牌实例  
     deck = CardDeck()  
     
     # 测试用例1：正常抽牌  
-    print("\n测试1: 正常抽牌")  
+    logger.info("\n测试1: 正常抽牌")  
     test_numbers = [1, 25, 49]  
     for n in test_numbers:  
         card = deck.draw_card(n)  
-        print(f"抽取第{n}张牌：{card}")  
+        logger.info(f"抽取第{n}张牌：{card}")  
     
     # 测试用例2：错误输入  
-    print("\n测试2: 错误输入")  
+    logger.info("\n测试2: 错误输入")  
     invalid_inputs = [0, 50, -1, "abc"]  
     for n in invalid_inputs:  
         result = deck.draw_card(n)  
-        print(f"输入{n}的结果：{result}")  
+        logger.info(f"输入{n}的结果：{result}")  
     
     # 测试用例3：连续洗牌  
-    print("\n测试3: 连续洗牌效果")  
-    print("初始顺序：", deck.cards[:5], "...")  
+    logger.info("\n测试3: 连续洗牌效果")  
+    logger.info("初始顺序：", deck.cards[:5], "...")  
     time.sleep(1)  # 等待1秒确保不同的种子  
     deck.shuffle()  
-    print("洗牌后顺序：", deck.cards[:5], "...")  
+    logger.info("洗牌后顺序：", deck.cards[:5], "...")  
     
-    print("\n=== 测试完成 ===")  
+    logger.info("\n=== 测试完成 ===")  
 
 # 运行测试  
 if __name__ == "__main__":  
     test_card_deck()  
     
     # 交互式测试  
-    print("\n=== 开始交互式测试 ===")  
+    logger.info("\n=== 开始交互式测试 ===")  
     deck = CardDeck()  
     while True:  
         try:  
@@ -81,6 +83,6 @@ if __name__ == "__main__":
                 break  
             n = int(user_input)  
             result = deck.draw_card(n)  
-            print(f"第{n}张牌是：{result}")  
+            logger.info(f"第{n}张牌是：{result}")  
         except ValueError:  
-            print("请输入有效的数字！")
+            logger.info("请输入有效的数字！")
