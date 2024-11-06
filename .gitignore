@@ -33,5 +33,5 @@ plugins/banwords/lib/__pycache__
 client_config.json
 log
 face
-XuanXue/SanMingZhan/image/
-XuanXue/MeiHuaYiShu/image/
+image/MH
+image/SMZ
