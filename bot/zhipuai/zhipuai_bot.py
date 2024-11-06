@@ -1,5 +1,5 @@
 # encoding:utf-8
-
+import traceback
 import time
 import re
 import os  
@@ -25,6 +25,7 @@ from XuanXue.MeiHuaYiShu.meihuaxinyi import GenZhanBuCueWord
 from XuanXue.ZhenWuLingQian.zhen_wu_ling_qian import ZhenWuLingQian
 from XuanXue.ZhenWuLingQian.rush_card import CardDeck
 from XuanXue.SanMingZhan.san_ming_zhan import SanMingJiuGong
+from XuanXue.SanMingZhan.san_ming_zhan import SanMingZhanRquest
 from XuanXue.DuanYiTianJi.duan_yi_tian_ji import GuaTu
 from XuanXue.DuanYiTianJi.duan_yi_tian_ji import GuaTuNum
 
@@ -49,6 +50,14 @@ class ZHIPUAIBot(Bot, ZhipuAIImage):
         # 判断是否为文本消息
         if context.type == ContextType.TEXT:
             logger.info("[ZHIPU_AI] query={}".format(query))
+            # # 获取并打印完整的调用栈  
+            # print("当前完整调用栈：")  
+            # traceback.print_stack()  
+            
+            # # 或者只获取调用栈字符串  
+            # stack_str = ''.join(traceback.format_stack())  
+            # print("格式化的调用栈：")  
+            # print(stack_str) 
 
             # init reply
             session_id = context["session_id"]
@@ -77,7 +86,7 @@ class ZHIPUAIBot(Bot, ZhipuAIImage):
                     logger.debug("[ZHIPU_AI] session messages={}".format(session.messages))
                     # 调用 reply_text 获取 AI 回复
                     reply_content = self.reply_text(session)
-                    logger.debug(
+                    logger.info(
                         "[ZHIPU_AI] session_id={}, reply_content={}, completion_tokens={}".format(
                             session_id,
                             reply_content["content"],
@@ -117,7 +126,7 @@ class ZHIPUAIBot(Bot, ZhipuAIImage):
             elif "解签" == query:
                 # 解签
                 return Reply(ReplyType.TEXT, "签文都给你啦😾！你自己看看嘛~🐾") 
-            elif "三命占" == query:
+            elif SanMingZhanRquest(query):
                 # 三命占排盘
                 pai_pan_result = SanMingJiuGong()
                 if pai_pan_result:

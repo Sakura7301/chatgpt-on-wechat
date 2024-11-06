@@ -11,6 +11,11 @@ from PIL import Image, ImageDraw, ImageFont, ImageColor, ImageFilter
 
 config = conf()  
 
+def SanMingZhanRquest(query):
+    # 定义占卜关键词列表
+    divination_keywords = ['三命占', "三命九宫"]
+    return any(keyword in query for keyword in divination_keywords)
+
 def get_current_filename():  
     """  
     生成当前时间的文件名  

@@ -34,132 +34,158 @@ class ChatChannel(Channel):
         _thread.start()
 
     # 根据消息构造context，消息内容相关的触发项写在这里
-    def _compose_context(self, ctype: ContextType, content, **kwargs):
-        context = Context(ctype, content)
-        context.kwargs = kwargs
-        # context首次传入时，origin_ctype是None,
-        # 引入的起因是：当输入语音时，会嵌套生成两个context，第一步语音转文本，第二步通过文本生成文字回复。
-        # origin_ctype用于第二步文本回复时，判断是否需要匹配前缀，如果是私聊的语音，就不需要匹配前缀
-        if "origin_ctype" not in context:
-            context["origin_ctype"] = ctype
-        # context首次传入时，receiver是None，根据类型设置receiver
-        first_in = "receiver" not in context
-        # 群名匹配过程，设置session_id和receiver
-        if first_in:  # context首次传入时，receiver是None，根据类型设置receiver
-            config = conf()
-            cmsg = context["msg"]
-            user_data = conf().get_user_data(cmsg.from_user_id)
-            context["openai_api_key"] = user_data.get("openai_api_key")
-            context["gpt_model"] = user_data.get("gpt_model")
-            if context.get("isgroup", False):
-                group_name = cmsg.other_user_nickname
-                group_id = cmsg.other_user_id
+    def _compose_context(self, ctype: ContextType, content, **kwargs):  
+        context = Context(ctype, content)  
+        context.kwargs = kwargs  
+        # context首次传入时，origin_ctype是None,  
+        # 引入的起因是：当输入语音时，会嵌套生成两个context，第一步语音转文本，第二步通过文本生成文字回复。  
+        # origin_ctype用于第二步文本回复时，判断是否需要匹配前缀，如果是私聊的语音，就不需要匹配前缀  
+        if "origin_ctype" not in context:  
+            context["origin_ctype"] = ctype  
+        # context首次传入时，receiver是None，根据类型设置receiver  
+        first_in = "receiver" not in context  
+        # 群名匹配过程，设置session_id和receiver  
+        if first_in:  # context首次传入时，receiver是None，根据类型设置receiver  
+            config = conf()  
+            cmsg = context["msg"]  
+            user_data = conf().get_user_data(cmsg.from_user_id)  
+            context["openai_api_key"] = user_data.get("openai_api_key")  
+            context["gpt_model"] = user_data.get("gpt_model")  
+            if context.get("isgroup", False):  
+                group_name = cmsg.other_user_nickname  
+                group_id = cmsg.other_user_id  
 
-                group_name_white_list = config.get("group_name_white_list", [])
-                group_name_keyword_white_list = config.get("group_name_keyword_white_list", [])
-                if any(
-                    [
-                        group_name in group_name_white_list,
-                        "ALL_GROUP" in group_name_white_list,
-                        check_contain(group_name, group_name_keyword_white_list),
-                    ]
-                ):
-                    group_chat_in_one_session = conf().get("group_chat_in_one_session", [])
-                    session_id = cmsg.actual_user_id
-                    if any(
-                        [
-                            group_name in group_chat_in_one_session,
-                            "ALL_GROUP" in group_chat_in_one_session,
-                        ]
-                    ):
-                        session_id = group_id
-                else:
-                    logger.debug(f"No need reply, groupName not in whitelist, group_name={group_name}")
-                    return None
-                context["session_id"] = session_id
-                context["receiver"] = group_id
-            else:
-                context["session_id"] = cmsg.other_user_id
-                context["receiver"] = cmsg.other_user_id
-            e_context = PluginManager().emit_event(EventContext(Event.ON_RECEIVE_MESSAGE, {"channel": self, "context": context}))
-            context = e_context["context"]
-            if e_context.is_pass() or context is None:
-                return context
-            if cmsg.from_user_id == self.user_id and not config.get("trigger_by_self", True):
-                logger.debug("[chat_channel]self message skipped")
-                return None
+                group_name_white_list = config.get("group_name_white_list", [])  
+                group_name_keyword_white_list = config.get("group_name_keyword_white_list", [])  
+                if any(  
+                    [  
+                        group_name in group_name_white_list,  
+                        "ALL_GROUP" in group_name_white_list,  
+                        check_contain(group_name, group_name_keyword_white_list),  
+                    ]  
+                ):  
+                    group_chat_in_one_session = conf().get("group_chat_in_one_session", [])  
+                    session_id = cmsg.actual_user_id  
+                    if any(  
+                        [  
+                            group_name in group_chat_in_one_session,  
+                            "ALL_GROUP" in group_chat_in_one_session,  
+                        ]  
+                    ):  
+                        session_id = group_id  
+                else:  
+                    logger.debug(f"No need reply, groupName not in whitelist, group_name={group_name}")  
+                    return None  
+                context["session_id"] = session_id  
+                context["receiver"] = group_id  
+            else:  
+                context["session_id"] = cmsg.other_user_id  
+                context["receiver"] = cmsg.other_user_id  
+            e_context = PluginManager().emit_event(EventContext(Event.ON_RECEIVE_MESSAGE, {"channel": self, "context": context}))  
+            context = e_context["context"]  
+            if e_context.is_pass() or context is None:  
+                return context  
+            if cmsg.from_user_id == self.user_id and not config.get("trigger_by_self", True):  
+                logger.debug("[chat_channel]self message skipped")  
+                return None  
 
-        # 消息内容匹配过程，并处理content
-        if ctype == ContextType.TEXT:
-            if first_in and "」\n- - - - - - -" in content:  # 初次匹配 过滤引用消息
-                logger.debug(content)
-                logger.debug("[chat_channel]reference query skipped")
-                return None
+        # 定义日志打印函数  
+        def log_message(msg_type, user_info, msg_content):  
+            try:  
+                if context.get("isgroup", False):  
+                    group_name = context["msg"].other_user_nickname  
+                    logger.info(f"[{msg_type}|{group_name}] [{user_info['nickname']}]: {msg_content}")  
+                else:  
+                    logger.info(f"[{msg_type}] [{user_info['nickname']}]: {msg_content}")  
+            except Exception as e:  
+                logger.warning(f"打印消息日志时出错: {e}")  
 
-            nick_name_black_list = conf().get("nick_name_black_list", [])
-            if context.get("isgroup", False):  # 群聊
-                # 校验关键字
-                match_prefix = check_prefix(content, conf().get("group_chat_prefix"))
-                match_contain = check_contain(content, conf().get("group_chat_keyword"))
-                flag = False
-                if context["msg"].to_user_id != context["msg"].actual_user_id:
-                    if match_prefix is not None or match_contain is not None:
-                        flag = True
-                        if match_prefix:
-                            content = content.replace(match_prefix, "", 1).strip()
-                    if context["msg"].is_at:
-                        nick_name = context["msg"].actual_user_nickname
-                        if nick_name and nick_name in nick_name_black_list:
-                            # 黑名单过滤
-                            logger.warning(f"[chat_channel] Nickname {nick_name} in In BlackList, ignore")
-                            return None
+        # 消息内容匹配过程，并处理content  
+        if ctype == ContextType.TEXT:  
+            if first_in and "」\n- - - - - - -" in content:  # 初次匹配 过滤引用消息  
+                logger.debug("[chat_channel]reference query skipped")  
+                return None  
 
-                        logger.info("[chat_channel]receive group at")
-                        if not conf().get("group_at_off", False):
-                            flag = True
-                        self.name = self.name if self.name is not None else ""  # 部分渠道self.name可能没有赋值
-                        pattern = f"@{re.escape(self.name)}(\u2005|\u0020)"
-                        subtract_res = re.sub(pattern, r"", content)
-                        if isinstance(context["msg"].at_list, list):
-                            for at in context["msg"].at_list:
-                                pattern = f"@{re.escape(at)}(\u2005|\u0020)"
-                                subtract_res = re.sub(pattern, r"", subtract_res)
-                        if subtract_res == content and context["msg"].self_display_name:
-                            # 前缀移除后没有变化，使用群昵称再次移除
-                            pattern = f"@{re.escape(context['msg'].self_display_name)}(\u2005|\u0020)"
-                            subtract_res = re.sub(pattern, r"", content)
-                        content = subtract_res
-                if not flag:
-                    if context["origin_ctype"] == ContextType.VOICE:
-                        logger.info("[chat_channel]receive group voice, but checkprefix didn't match")
-                    return None
-            else:  # 单聊
-                nick_name = context["msg"].from_user_nickname
-                if nick_name and nick_name in nick_name_black_list:
-                    # 黑名单过滤
-                    logger.warning(f"[chat_channel] Nickname '{nick_name}' in In BlackList, ignore")
-                    return None
+            nick_name_black_list = conf().get("nick_name_black_list", [])  
+            if context.get("isgroup", False):  # 群聊  
+                # 校验关键字  
+                match_prefix = check_prefix(content, conf().get("group_chat_prefix"))  
+                match_contain = check_contain(content, conf().get("group_chat_keyword"))  
+                flag = False  
+                if context["msg"].to_user_id != context["msg"].actual_user_id:  
+                    if match_prefix is not None or match_contain is not None:  
+                        flag = True  
+                        if match_prefix:  
+                            content = content.replace(match_prefix, "", 1).strip()  
+                    if context["msg"].is_at:  
+                        nick_name = context["msg"].actual_user_nickname  
+                        if nick_name and nick_name in nick_name_black_list:  
+                            # 黑名单过滤  
+                            logger.warning(f"[chat_channel] Nickname {nick_name} in In BlackList, ignore")  
+                            return None  
 
-                match_prefix = check_prefix(content, conf().get("single_chat_prefix", [""]))
-                if match_prefix is not None:  # 判断如果匹配到自定义前缀，则返回过滤掉前缀+空格后的内容
-                    content = content.replace(match_prefix, "", 1).strip()
-                elif context["origin_ctype"] == ContextType.VOICE:  # 如果源消息是私聊的语音消息，允许不匹配前缀，放宽条件
-                    pass
-                else:
-                    return None
-            content = content.strip()
-            img_match_prefix = check_prefix(content, conf().get("image_create_prefix",[""]))
-            if img_match_prefix:
-                content = content.replace(img_match_prefix, "", 1)
-                context.type = ContextType.IMAGE_CREATE
-            else:
-                context.type = ContextType.TEXT
-            context.content = content.strip()
-            if "desire_rtype" not in context and conf().get("always_reply_voice") and ReplyType.VOICE not in self.NOT_SUPPORT_REPLYTYPE:
-                context["desire_rtype"] = ReplyType.VOICE
-        elif context.type == ContextType.VOICE:
-            if "desire_rtype" not in context and conf().get("voice_reply_voice") and ReplyType.VOICE not in self.NOT_SUPPORT_REPLYTYPE:
-                context["desire_rtype"] = ReplyType.VOICE
+                        if not conf().get("group_at_off", False):  
+                            flag = True  
+                            # 在确认是@消息时打印日志  
+                            user_info = {  
+                                "nickname": context["msg"].actual_user_nickname,  
+                                "wx_id": context["msg"].actual_user_id  
+                            }  
+                            log_message("群聊", user_info, content)  
+
+                        self.name = self.name if self.name is not None else ""  
+                        pattern = f"@{re.escape(self.name)}(\u2005|\u0020)"  
+                        subtract_res = re.sub(pattern, r"", content)  
+                        if isinstance(context["msg"].at_list, list):  
+                            for at in context["msg"].at_list:  
+                                pattern = f"@{re.escape(at)}(\u2005|\u0020)"  
+                                subtract_res = re.sub(pattern, r"", subtract_res)  
+                        if subtract_res == content and context["msg"].self_display_name:  
+                            pattern = f"@{re.escape(context['msg'].self_display_name)}(\u2005|\u0020)"  
+                            subtract_res = re.sub(pattern, r"", content)  
+                        content = subtract_res  
+                if not flag:  
+                    if context["origin_ctype"] == ContextType.VOICE:  
+                        logger.info("[chat_channel]receive group voice, but checkprefix didn't match")  
+                    return None  
+            else:  # 单聊  
+                nick_name = context["msg"].from_user_nickname  
+                if nick_name and nick_name in nick_name_black_list:  
+                    # 黑名单过滤  
+                    logger.warning(f"[chat_channel] Nickname '{nick_name}' in In BlackList, ignore")  
+                    return None  
+
+                match_prefix = check_prefix(content, conf().get("single_chat_prefix", [""]))  
+                if match_prefix is not None:  # 判断如果匹配到自定义前缀，则返回过滤掉前缀+空格后的内容  
+                    content = content.replace(match_prefix, "", 1).strip()  
+                    # 在确认是有效的私聊消息时打印日志  
+                    user_info = {  
+                        "nickname": context["msg"].from_user_nickname,  
+                        "wx_id": context["msg"].from_user_id  
+                    }  
+                    log_message("私聊", user_info, content)  
+                elif context["origin_ctype"] == ContextType.VOICE:  # 如果源消息是私聊的语音消息，允许不匹配前缀，放宽条件  
+                    # 语音消息打印日志  
+                    user_info = {  
+                        "nickname": context["msg"].from_user_nickname,  
+                        "wx_id": context["msg"].from_user_id  
+                    }  
+                    log_message("私聊语音", user_info, "语音消息")  
+                else:  
+                    return None  
+            content = content.strip()  
+            img_match_prefix = check_prefix(content, conf().get("image_create_prefix",[""]))  
+            if img_match_prefix:  
+                content = content.replace(img_match_prefix, "", 1)  
+                context.type = ContextType.IMAGE_CREATE  
+            else:  
+                context.type = ContextType.TEXT  
+            context.content = content.strip()  
+            if "desire_rtype" not in context and conf().get("always_reply_voice") and ReplyType.VOICE not in self.NOT_SUPPORT_REPLYTYPE:  
+                context["desire_rtype"] = ReplyType.VOICE  
+        elif context.type == ContextType.VOICE:  
+            if "desire_rtype" not in context and conf().get("voice_reply_voice") and ReplyType.VOICE not in self.NOT_SUPPORT_REPLYTYPE:  
+                context["desire_rtype"] = ReplyType.VOICE  
         return context
 
     def _handle(self, context: Context):

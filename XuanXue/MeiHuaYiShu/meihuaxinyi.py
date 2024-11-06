@@ -4,7 +4,8 @@ import pytz
 import re 
 import emoji  
 import time
-from datetime import datetime
+from datetime import datetime, timedelta  
+from lunar_python import Solar, Lunar  
 from PIL import Image, ImageDraw, ImageFont
 from XuanXue.MeiHuaYiShu.wuxing_calculator import WuXingCalculator
 from zhdate import ZhDate   
@@ -293,19 +294,18 @@ def FormatZhanBuReply(gen_random_num_str: str,
     try:  
         # 验证必需的键是否存在  
         required_keys = [  
-            'shichen_info', 'wang_shuai', 'ben_gua',   
-            'ben_gua_sheng_ke', 'ben_gua_ji_xiong',  
-            'dong_yao', 'hu_gua', 'bian_gua',
-            'bian_gua_sheng_ke', 'bian_gua_ji_xiong', 'fang_wei',
-            'ying_qi'  
+            'shichen_info', 'wang_shuai', 
+            'ben_gua',  'ben_gua_sheng_ke', 
+            'hu_gua', 
+            'bian_gua', 'bian_gua_sheng_ke',
         ]  
         
         if not all(key in result for key in required_keys):  
             missing_keys = [key for key in required_keys if key not in result]  
             raise ValueError(f"结果字典缺少必需的键: {missing_keys}")  
-
+            
         # 保持占卜结果模板  
-        prompt = f"""{gen_random_num_str}占卜结果出来啦~😸🔮\n问题：{question}\n数字：{number}\n时间：{result['shichen_info']}\n占卜结果:\n旺衰：{result['wang_shuai']}\n[主卦] {result['ben_gua']}   {result['ben_gua_sheng_ke']}   [{result['ben_gua_ji_xiong']}]\n[{result['dong_yao']}]爻动   {result['hu_gua']}\n[变卦] {result['bian_gua']}   {result['bian_gua_sheng_ke']}   [{result['bian_gua_ji_xiong']}]\n方位：{result['fang_wei']}    应期：{result['ying_qi']}\n解析：\n{reply_content['content']}\n(解读仅供参考哦，我们还是要活在当下嘛~🐾)"""
+        prompt = f"""{gen_random_num_str}占卜结果出来啦~😸🔮\n问题：{question}\n{result['shichen_info']}\n{result['gan_zhi_info']}\n{result['wang_shuai']}\n数字：{number}\n[主卦] {result['ben_gua']}({result['ben_gua_sheng_ke']})\n[互卦] {result['hu_gua']}\n[动爻] {result['dong_yao']}爻动\n[变卦] {result['bian_gua']}({result['bian_gua_sheng_ke']})\n解析：\n{reply_content['content']}\n(解读仅供参考哦，我们还是要活在当下嘛~🐾)"""
         
         return prompt  
 
@@ -337,9 +337,11 @@ def GenZhanBuCueWord(result: dict, question: str) -> str:
     try:  
         # 验证必需的键是否存在  
         required_keys = [  
-            'wang_shuai', 'ben_gua', 'ben_gua_sheng_ke',   
-            'ben_gua_ji_xiong', 'hu_gua', 'bian_gua',  
-            'bian_gua_sheng_ke', 'bian_gua_ji_xiong', 'dong_yao'  
+            'wang_shuai', 
+            'ben_gua', 'ben_gua_sheng_ke',   
+            'hu_gua', 
+            'bian_gua',  'bian_gua_sheng_ke',  
+            'dong_yao'  
         ]  
         
         if not all(key in result for key in required_keys):  
@@ -347,7 +349,7 @@ def GenZhanBuCueWord(result: dict, question: str) -> str:
             raise ValueError(f"结果字典缺少必需的键: {missing_keys}")  
 
         # 保持原有格式的提示词模板  
-        prompt = f"""根据现在的月份，月令旺衰情况是：{result['wang_shuai']}；我的卦象是：{result['ben_gua']} {result['ben_gua_sheng_ke']} {result['ben_gua_ji_xiong']} 、{result['hu_gua']}、{result['bian_gua']}  {result['bian_gua_sheng_ke']} {result['bian_gua_ji_xiong']}，动爻是{result['dong_yao']}；在梅花易数中，主卦代表事情的开始，互卦代表事情的发展过程，变卦代表事情的结果。我想要占卜的问题是{question}；我需要你结合客户的问题和我提供给你的卦象、生克情况，吉凶，同时参考易经中对卦象的描述，做一个简洁明了且易于理解的解读并回复给我。记住，不要复述我给你的卦象，直接用易于理解的语言描述占卜的结果即可，不要长篇大论，同时，可以给一些合理的建议，100个汉字以内即可。最后，你需要说明，本卦对应爻发动之后的爻辞"""  
+        prompt = f"""请使用梅花易数对"{question}"这个问题进行断卦。时间为{result['gan_zhi_info']}，五行旺衰为：{result['wang_shuai']}。主卦为{result['ben_gua']}，{result['hu_gua']}，{result['dong_yao']}爻动而变{result['bian_gua']}。请严格遵循《梅花易数》体系进行解卦，然后给出150字以内的简要解析。严格使用文字描述，不使用任何符号，禁止使用特殊符号和重复字符；"""
         
         return prompt  
 
@@ -392,45 +394,11 @@ def get_bagua_direction(upper_gua_num):
         return f"{direction}"  
         
     except Exception as e:  
-        return f"发生错误：{str(e)}" 
-
-def get_lunar_month(date_str=None):  
-    """  
-    将公历日期转换为农历月份数字  
-    
-    Args:  
-        date_str: 日期字符串，格式为'YYYY-MM-DD'。如果为None则使用当前日期  
-        
-    Returns:  
-        int: 农历月份数字  
-        
-    Example:  
-        >>> get_lunar_month('2024-10-30')  
-        9  
-        >>> get_lunar_month()  # 使用当前日期  
-        12  
-    """  
-    try:  
-        # 如果没有提供日期，使用当前日期  
-        if date_str is None:  
-            date = datetime.now()  
-        else:  
-            # 将输入的日期字符串转换为datetime对象  
-            date = datetime.strptime(date_str, '%Y-%m-%d')  
-        
-        # 转换为农历  
-        lunar_date = ZhDate.from_datetime(date)  
-        
-        # 返回农历月份数字  
-        return lunar_date.lunar_month  
-    
-    except Exception as e:  
-        logger.info(f"转换出错：{str(e)}")  
-        return None   
+        return f"发生错误：{str(e)}"  
 
 def SuanGuaRquest(query):
     # 定义占卜关键词列表
-    divination_keywords = ['算算', '占卜' ,'开卦', '卜卦', '算卦', '算一下']
+    divination_keywords = ['算算', "算下", '占卜' ,'开卦', '卜卦', '算卦', '算一算', '算一下']
     return any(keyword in query for keyword in divination_keywords)
 
 
@@ -473,6 +441,55 @@ def ChangeYao(bengua_lines, move_line):
         biangua_lines[index] = 'yin'  
     
     return biangua_lines  
+
+def GanZhi():  
+    # 获取当前时间的干支  
+    solar = Solar.fromDate(datetime.utcnow() + timedelta(hours=8))  
+    lunar = solar.getLunar()  
+    
+    # 获取年月日时的干支  
+    year_ganzhi = lunar.getYearInGanZhi()  # 年干支  
+    month_ganzhi = lunar.getMonthInGanZhi()  # 月干支  
+    day_ganzhi = lunar.getDayInGanZhi()  # 日干支  
+    hour_ganzhi = lunar.getTimeInGanZhi()  # 时辰干支  
+    
+    return [year_ganzhi, month_ganzhi, day_ganzhi, hour_ganzhi]   
+
+def GetNongLiMonth(input_str):  
+    print(type(input_str))
+    month = 1
+    # 定义地支与月份的对应关系字典  
+    branch_to_month = {  
+        '寅': 1,  # 正月  
+        '卯': 2,  # 二月  
+        '辰': 3,  # 三月  
+        '巳': 4,  # 四月  
+        '午': 5,  # 五月  
+        '未': 6,  # 六月  
+        '申': 7,  # 七月  
+        '酉': 8,  # 八月  
+        '戌': 9,  # 九月  
+        '亥': 10, # 十月  
+        '子': 11, # 十一月  
+        '丑': 12  # 十二月  
+    }  
+    
+    # 检查输入是否为空  
+    if not input_str:  
+        print("Invalid Input: Empty string") 
+        return month
+    
+    # 获取地支（如果输入是两个字符，取第二个；如果是一个字符，直接使用）  
+    earthly_branch = input_str[-1]  # 取最后一个字符作为地支  
+    
+    # 检查提取的地支是否有效  
+    if earthly_branch not in branch_to_month:  
+        print("Invalid Earthly Branch")
+        return month
+    
+    # 返回对应的月份  
+    month = branch_to_month[earthly_branch] 
+    return  month
 
 def MeiHuaXinYi(value):  
     """  
@@ -595,7 +612,7 @@ def MeiHuaXinYi(value):
     hugua_name_pro = hexagram_mapping.get((hugua_upper_num, hugua_lower_num), '未知卦')
 
     # 修改此处，互卦名称直接输出上卦和下卦名称  
-    hugua_name = f"互见{hugua_upper_name}{hugua_lower_name}({hugua_name_pro})"  
+    hugua_name = f"互见{hugua_upper_name}{hugua_lower_name}"  
 
     # 6. 得到变卦  
     biangua_lines = ChangeYao(bengua_lines, moving_line) 
@@ -620,7 +637,7 @@ def MeiHuaXinYi(value):
     logger.info(f"动爻数:{moving_line}   动  爻:{dong_yao}")
 
     # 8. 获取时辰信息  
-    datetime_str = f"{now.year}-{now.month}-{now.day} {now.hour}:{now.minute}:{now.second} {shichen_name}"  
+    datetime_str = f"{now.year}-{now.month}-{now.day} {now.hour}:{now.minute}:{now.second}"  
 
     # 整合信息，准备获取五行生克结果
     if 1 <= moving_line < 3: 
@@ -629,32 +646,42 @@ def MeiHuaXinYi(value):
     else:
         # 动爻在上卦，下卦为体
         dong_yao_flag = 0
-    
+
+    # 获取干支
+    gan_zhi = GanZhi()
+    ganzhi_info = f"{gan_zhi[0]}年 {gan_zhi[1]}月 {gan_zhi[2]}日 {gan_zhi[3]}时"
+
     # 获取农历月份数
-    nongli_month = get_lunar_month()
+    nongli_month = GetNongLiMonth(gan_zhi[1])
+
+    print("nongli_month = ", nongli_month)
 
     # 调用 WuXingCalculator 函数获取体用生克信息以及吉凶结果
     bengua_wuxing_result = WuXingCalculator(upper_num, lower_num, dong_yao_flag, nongli_month)
     biangua_wuxing_result = WuXingCalculator(biangua_upper_num, biangua_lower_num, dong_yao_flag, nongli_month)
 
-    # 计算应期
-    ying_qi = (upper_num + lower_num + shichen)
+    # # 计算应期
+    # ying_qi = (upper_num + lower_num + shichen)
 
-    fang_wei = get_bagua_direction(upper_num)
+    # if moving_line > 3:
+    #     fang_wei = get_bagua_direction(biangua_upper_num)
+    # else :
+    #     fang_wei = get_bagua_direction(biangua_lower_num)
 
     # 构造结果字典  
     result = {  
+        "gan_zhi_info":ganzhi_info,
         "ben_gua": bengua_name,  
         "wang_shuai": bengua_wuxing_result['wang_shuai'],
         "ben_gua_sheng_ke":bengua_wuxing_result['sheng_ke'],
-        "ben_gua_ji_xiong":bengua_wuxing_result['ji_xiong'],
-        "fang_wei": fang_wei,
+        # "ben_gua_ji_xiong":bengua_wuxing_result['ji_xiong'],
+        # "fang_wei": fang_wei,
         "hu_gua": hugua_name,  
         "bian_gua": biangua_name,  
         "bian_gua_sheng_ke":biangua_wuxing_result['sheng_ke'],
-        "bian_gua_ji_xiong":biangua_wuxing_result['ji_xiong'],
+        # "bian_gua_ji_xiong":biangua_wuxing_result['ji_xiong'],
         "dong_yao": dong_yao_full,  
-        "ying_qi": ying_qi,
+        # "ying_qi": ying_qi,
         "shichen_info": datetime_str  
     }  
 
@@ -669,12 +696,11 @@ def run():
     if result:  
         logger.info("时间", result["shichen_info"])  
         logger.info("旺衰：", result["wang_shuai"])
-        logger.info("本卦：", result["ben_gua"], ",", result["ben_gua_sheng_ke"], ",", result['ben_gua_ji_xiong']) 
+        logger.info("本卦：", result["ben_gua"])
         logger.info("方位：", result["fang_wei"])
         logger.info("互卦：", result["hu_gua"])  
-        logger.info("变卦：", result["bian_gua"], ",", result["bian_gua_sheng_ke"], ",", result['bian_gua_ji_xiong']) 
+        logger.info("变卦：", result["bian_gua"])
         logger.info("动爻：", result["dong_yao"]) 
-        logger.info("应期：", result["ying_qi"])
     else:  
         logger.info("输入的数字不在指定范围内。")  
 
