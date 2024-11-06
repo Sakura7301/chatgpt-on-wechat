@@ -349,7 +349,7 @@ def GenZhanBuCueWord(result: dict, question: str) -> str:
             raise ValueError(f"结果字典缺少必需的键: {missing_keys}")  
 
         # 保持原有格式的提示词模板  
-        prompt = f"""请使用梅花易数对"{question}"这个问题进行断卦。时间为{result['gan_zhi_info']}，五行旺衰为：{result['wang_shuai']}。主卦为{result['ben_gua']}，{result['hu_gua']}，{result['dong_yao']}爻动而变{result['bian_gua']}。请严格遵循《梅花易数》体系进行解卦，然后给出150字以内的简要解析。严格使用文字描述，不使用任何符号，禁止使用特殊符号和重复字符；"""
+        prompt = f"""请严格遵循《梅花易数》对"{question}"这个问题进行断卦。时间为{result['gan_zhi_info']}，五行旺衰为：{result['wang_shuai']}。主卦为{result['ben_gua']}，{result['hu_gua']}，{result['dong_yao']}爻动而变{result['bian_gua']}；然后给出150字以内的简要解析。"""
         
         return prompt  
 
