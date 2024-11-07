@@ -17,21 +17,22 @@ from config import conf, load_config
 from zhipuai import ZhipuAI
 
 from XuanXue.MeiHuaYiShu.meihuaxinyi import MeiHuaXinYi
-from XuanXue.MeiHuaYiShu.meihuaxinyi import SuanGuaRquest
 from XuanXue.MeiHuaYiShu.meihuaxinyi import SaveGuaLi
 from XuanXue.MeiHuaYiShu.meihuaxinyi import GetGuaShu
 from XuanXue.MeiHuaYiShu.meihuaxinyi import FormatZhanBuReply
 from XuanXue.MeiHuaYiShu.meihuaxinyi import GenZhanBuCueWord
+from XuanXue.MeiHuaYiShu.meihuaxinyi import SuanGuaRquest
 from XuanXue.ZhenWuLingQian.zhen_wu_ling_qian import ZhenWuLingQian
-from XuanXue.ZhenWuLingQian.rush_card import CardDeck
+from XuanXue.ZhenWuLingQian.zhen_wu_ling_qian import JieQianRequest
+from XuanXue.ZhenWuLingQian.zhen_wu_ling_qian import ZhenWuLingQianRequest
 from XuanXue.SanMingZhan.san_ming_zhan import SanMingJiuGong
 from XuanXue.SanMingZhan.san_ming_zhan import SanMingZhanRquest
 from XuanXue.DuanYiTianJi.duan_yi_tian_ji import GuaTu
 from XuanXue.DuanYiTianJi.duan_yi_tian_ji import GuaTuNum
-
-
-# 创建全局card deck实例
-glob_deck = CardDeck()
+from XuanXue.DuanYiTianJi.duan_yi_tian_ji import GuaTuRequest
+from XuanXue.DuanYiTianJi.duan_yi_tian_ji import GuaTuReDailyRequest
+from XuanXue.HuangLi.huang_li import GetHuangLi
+from XuanXue.HuangLi.huang_li import HuangLiRquest
 
 
 # ZhipuAI对话模型API
@@ -44,12 +45,14 @@ class ZHIPUAIBot(Bot, ZhipuAIImage):
             "temperature": conf().get("temperature", 0.9),  # 值在(0,1)之间(智谱AI 的温度不能取 0 或者 1)
             "top_p": conf().get("top_p", 0.7),  # 值在(0,1)之间(智谱AI 的 top_p 不能取 0 或者 1)
         }
-        self.client = ZhipuAI(api_key=conf().get("zhipu_ai_api_key"))
+        self.client = ZhipuAI(api_key=conf().get("zhipu_ai_api_key")) 
+        # 获取探数API
+        self.tan_shu_api = conf().get("tan_shu_api_key")
 
     def reply(self, query, context=None):
         # 判断是否为文本消息
         if context.type == ContextType.TEXT:
-            logger.info("[ZHIPU_AI] query={}".format(query))
+            # logger.info("[ZHIPU_AI] query={}".format(query))
             # # 获取并打印完整的调用栈  
             # print("当前完整调用栈：")  
             # traceback.print_stack()  
@@ -114,16 +117,23 @@ class ZHIPUAIBot(Bot, ZhipuAIImage):
                     # MeiHuaXinYi 函数返回 None，说明数字不在范围内
                     reply = Reply(ReplyType.ERROR, "输入的数字不在指定范围内，请提供一个介于100到999之间的数字。")
                     return reply
-            elif "抽签" == query:
+            elif HuangLiRquest(query):
+                # 查询老黄历  
+                data = GetHuangLi(self.tan_shu_api)
+                logger.info(f"已获取到黄历：{data}")
+                if data:
+                    return Reply(ReplyType.TEXT, data)
+                else:
+                    return Reply(ReplyType.TEXT, "黄历获取失败，请联系开发者🐾")
+            elif ZhenWuLingQianRequest(query):
                 # 进入抽签逻辑
                 ling_qian_result = ZhenWuLingQian()  
-                logger.info("已获取到灵签")
                 if ling_qian_result:  
                     # 直接传入BytesIO对象  
                     return Reply(ReplyType.IMAGE, ling_qian_result)
                 else:  
                     return Reply(ReplyType.TEXT, "未找到指定灵签🐾")
-            elif "解签" == query:
+            elif JieQianRequest(query):
                 # 解签
                 return Reply(ReplyType.TEXT, "签文都给你啦😾！你自己看看嘛~🐾") 
             elif SanMingZhanRquest(query):
@@ -133,17 +143,17 @@ class ZHIPUAIBot(Bot, ZhipuAIImage):
                     return Reply(ReplyType.IMAGE, pai_pan_result) 
                 else:
                     return Reply(ReplyType.TEXT, "排盘失败！") 
-            elif "每日一卦" == query:
+            elif GuaTuReDailyRequest(query):
                 # 每日一卦(卦图)
                 gua_tu_result = GuaTuNum()
                 return Reply(ReplyType.IMAGE, gua_tu_result) 
-            elif "卦图" in query:
+            elif GuaTuRequest(query):
                 # 卦图
                 gua_tu_result = GuaTu(query)
                 if gua_tu_result:
                     return Reply(ReplyType.IMAGE, gua_tu_result) 
                 else :
-                    return Reply(ReplyType.TEXT, "获取卦图需要提供卦名！") 
+                    return Reply(ReplyType.TEXT, "获取卦图需要提正确供卦名！") 
             else:
                 # 用户无特殊需求，正常调用智谱AI回复
                 session = self.sessions.session_query(query, session_id)

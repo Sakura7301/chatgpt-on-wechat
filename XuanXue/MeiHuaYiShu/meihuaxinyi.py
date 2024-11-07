@@ -398,7 +398,7 @@ def get_bagua_direction(upper_gua_num):
 
 def SuanGuaRquest(query):
     # 定义占卜关键词列表
-    divination_keywords = ['算算', "算下", '占卜' ,'开卦', '卜卦', '算卦', '算一算', '算一下']
+    divination_keywords = ['算算', "算下", '占卜' ,'开卦', '卜卦', '算卦', '算一算', '算一下', '猜猜', '你猜']
     return any(keyword in query for keyword in divination_keywords)
 
 

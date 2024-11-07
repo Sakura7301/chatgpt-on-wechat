@@ -86,6 +86,16 @@ GUA_MAPPING = {
     "泽水": "泽水困"  
 }  
 
+def GuaTuRequest(query):
+    # 定义占卜关键词列表
+    divination_keywords = ['卦图']
+    return any(keyword in query for keyword in divination_keywords)
+
+def GuaTuReDailyRequest(query):
+    # 定义占卜关键词列表
+    divination_keywords = ['每日一卦']
+    return any(keyword in query for keyword in divination_keywords)
+
 def GuaTu(input_text):  
     """  
     根据输入文本读取对应的卦图  

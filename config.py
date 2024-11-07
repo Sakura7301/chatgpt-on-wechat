@@ -15,6 +15,7 @@ available_setting = {
     "mei_hua_yi_shu_image_path": "", # 梅花易数卦例保存路径
     "san_ming_zhan_image_path": "", # 三命占排盘路径
     "zhen_wu_ling_qian_image_path": "", # 真武灵签路径
+    "tan_shu_api_key": "", # 黄历API所需要的key
     # openai api配置
     "open_ai_api_key": "",  # openai api key
     # openai apibase，当use_azure_chatgpt为true时，需要设置对应的api base

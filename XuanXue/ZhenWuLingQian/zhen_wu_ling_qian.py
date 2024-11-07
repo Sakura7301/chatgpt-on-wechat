@@ -44,6 +44,16 @@ def get_local_image(number):
     logger.info(f"未找到数字{number}对应的签文图片")  
     return None  
 
+def ZhenWuLingQianRequest(query):
+    # 定义占卜关键词列表
+    divination_keywords = ['抽签','真武灵签', '每日一签']
+    return any(keyword in query for keyword in divination_keywords)
+
+def JieQianRequest(query):
+    # 定义占卜关键词列表
+    divination_keywords = ['解签']
+    return any(keyword in query for keyword in divination_keywords)
+
 def ZhenWuLingQian():  
     """  
     读取本地图片并返回BytesIO对象  
