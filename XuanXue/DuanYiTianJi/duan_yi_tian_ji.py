@@ -148,7 +148,7 @@ def GuaTu(input_text):
                 # 查找对应的文件  
                 for file in files:  
                     # 从文件名中提取卦名部分（去掉编号和扩展名）  
-                    file_gua_name = file.split('_')[1].replace('.png', '')  
+                    file_gua_name = file.split('_')[1].replace('.jpg', '')  
                     if file_gua_name == gua_name:  
                         target_file = file  
                         break  

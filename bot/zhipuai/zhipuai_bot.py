@@ -16,6 +16,8 @@ from common.log import logger
 from config import conf, load_config
 from zhipuai import ZhipuAI
 
+from Other.history import GetHistory
+from Other.history import HistoryRquest
 from XuanXue.MeiHuaYiShu.meihuaxinyi import MeiHuaXinYi
 from XuanXue.MeiHuaYiShu.meihuaxinyi import SaveGuaLi
 from XuanXue.MeiHuaYiShu.meihuaxinyi import GetGuaShu
@@ -118,15 +120,23 @@ class ZHIPUAIBot(Bot, ZhipuAIImage):
                     reply = Reply(ReplyType.ERROR, "输入的数字不在指定范围内，请提供一个介于100到999之间的数字。")
                     return reply
             elif HuangLiRquest(query):
-                # 查询老黄历  
+                # 老黄历  
                 data = GetHuangLi(self.tan_shu_api)
-                logger.info(f"已获取到黄历：{data}")
+                logger.debug(f"已获取到黄历：{data}")
                 if data:
                     return Reply(ReplyType.TEXT, data)
                 else:
                     return Reply(ReplyType.TEXT, "黄历获取失败，请联系开发者🐾")
+            # elif HistoryRquest(query):
+            #     # 历史上的今天  
+            #     data = GetHistory()
+            #     logger.debug(f"已获取到历史上的今天：{data}")
+            #     if data:
+            #         return Reply(ReplyType.TEXT, data)
+            #     else:
+            #         return Reply(ReplyType.TEXT, "历史上的今天获取失败，请联系开发者🐾")
             elif ZhenWuLingQianRequest(query):
-                # 进入抽签逻辑
+                # 抽签
                 ling_qian_result = ZhenWuLingQian()  
                 if ling_qian_result:  
                     # 直接传入BytesIO对象  
