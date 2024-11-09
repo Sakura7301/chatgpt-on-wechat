@@ -1,4 +1,3 @@
-# encoding:utf-8  
 import io  
 import logging  
 from enum import Enum  
@@ -41,7 +40,6 @@ class Reply:
         self.type = type  
         self._raw_content = None  
         self.content = self._process_content(content)  
-        # logger.info(f"创建了新的 Reply 对象，类型: {type}")  
 
     def _process_content(self, content: Any) -> Any:  
         """  
@@ -53,13 +51,11 @@ class Reply:
         # 处理 BytesIO 对象  
         if isinstance(content, io.BytesIO):  
             try:  
-                # logger.info("正在处理 BytesIO 对象...")  
                 # 保存原始数据  
                 self._raw_content = content.getvalue()  
                 # 返回一个新的 BytesIO 对象  
                 bio = io.BytesIO(self._raw_content)  
                 bio.seek(0)  
-                # logger.info(f"成功创建新的 BytesIO 对象，大小: {len(self._raw_content)} 字节")  
                 return bio  
             except Exception as e:  
                 logger.error(f"处理 BytesIO 失败：{e}")  
@@ -67,13 +63,11 @@ class Reply:
             finally:  
                 try:  
                     content.close()  
-                    # logger.info("原始 BytesIO 对象已关闭")  
                 except Exception as e:  
                     logger.error(f"关闭 BytesIO 对象时出错：{e}")  
         
         # 如果是 bytes，直接保存并返回 BytesIO  
         elif isinstance(content, bytes):  
-            # logger.info(f"处理 bytes 对象，大小: {len(content)} 字节")  
             self._raw_content = content  
             bio = io.BytesIO(content)  
             bio.seek(0)  
@@ -87,28 +81,35 @@ class Reply:
         """  
         if self.type == ReplyType.IMAGE:  
             if isinstance(self.content, io.BytesIO):  
-                # logger.info("返回现有的 BytesIO 对象")  
-                # 重置位置  
                 self.content.seek(0)  
                 return self.content  
             elif self._raw_content:  
-                # logger.info("从原始数据创建新的 BytesIO 对象")  
-                # 如果有原始数据，创建新的 BytesIO  
                 bio = io.BytesIO(self._raw_content)  
                 bio.seek(0)  
                 return bio  
         return self.content  
 
+    def __enter__(self):  
+        """进入上下文管理器"""  
+        return self  
+
+    def __exit__(self, exc_type, exc_val, exc_tb):  
+        """退出上下文管理器并关闭 BytesIO 对象"""  
+        self.close_content()  
+
+    def close_content(self):  
+        """关闭内容"""  
+        try:  
+            if isinstance(self.content, io.BytesIO):  
+                self.content.close()  
+        except Exception as e:  
+            logger.error(f"在关闭 BytesIO 对象时出错：{e}")  
+
     def __del__(self):  
         """  
         析构函数，确保资源被正确释放  
         """  
-        try:  
-            if isinstance(self.content, io.BytesIO):  
-                self.content.close()  
-                # logger.info("在对象销毁时关闭了 BytesIO 对象")  
-        except Exception as e:  
-            logger.error(f"在销毁对象时关闭 BytesIO 失败：{e}")  
+        self.close_content()  
 
     def __str__(self) -> str:  
         """  
@@ -120,4 +121,4 @@ class Reply:
         return f"Reply(type={self.type}, content={content_preview})"  
 
     def __repr__(self) -> str:  
-        return self.__str__()  
+        return self.__str__()

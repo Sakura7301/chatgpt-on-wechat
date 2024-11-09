@@ -1,5 +1,7 @@
 #!/bin/bash  
 
+rm -rf /home/alex/Desktop/chatgpt-on-wechat/image/Tarot/*
+
 # 创建日志目录  
 mkdir -p ./log  
 

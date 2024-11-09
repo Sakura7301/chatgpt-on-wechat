@@ -35,6 +35,12 @@ from XuanXue.DuanYiTianJi.duan_yi_tian_ji import GuaTuRequest
 from XuanXue.DuanYiTianJi.duan_yi_tian_ji import GuaTuReDailyRequest
 from XuanXue.HuangLi.huang_li import GetHuangLi
 from XuanXue.HuangLi.huang_li import HuangLiRquest
+from XuanXue.Tarot.tarot import TarotSingleCard
+from XuanXue.Tarot.tarot import TarotThreeCards
+from XuanXue.Tarot.tarot import TarotCrossCards
+from XuanXue.Tarot.tarot import TarotSingleCardRequest
+from XuanXue.Tarot.tarot import TarotThreeCardsRequest
+from XuanXue.Tarot.tarot import TarotCrossCardsRequest
 
 
 # ZhipuAI对话模型API
@@ -143,6 +149,39 @@ class ZHIPUAIBot(Bot, ZhipuAIImage):
                     return Reply(ReplyType.IMAGE, ling_qian_result)
                 else:  
                     return Reply(ReplyType.TEXT, "未找到指定灵签🐾")
+            elif TarotSingleCardRequest(query):
+                try:
+                    # 单抽牌
+                    card_result = TarotSingleCard()  
+                    if card_result:  
+                        # 直接传入BytesIO对象  
+                        return Reply(ReplyType.IMAGE, card_result)
+                    else:  
+                        return Reply(ReplyType.TEXT, "抽牌异常🐾")
+                except Exception as e:
+                    return Reply(ReplyType.TEXT, f"抽牌失败：{e}")
+            elif TarotThreeCardsRequest(query):
+                try:
+                    # 三牌阵
+                    card_result = TarotThreeCards()  
+                    if card_result:  
+                        # 直接传入BytesIO对象  
+                        return Reply(ReplyType.IMAGE, card_result)
+                    else:  
+                        return Reply(ReplyType.TEXT, "抽牌异常🐾")
+                except Exception as e:
+                    return Reply(ReplyType.TEXT, f"抽牌失败：{e}")
+            elif TarotCrossCardsRequest(query):
+                try:
+                    # 十字排阵
+                    card_result = TarotCrossCards()  
+                    if card_result:  
+                        # 直接传入BytesIO对象  
+                        return Reply(ReplyType.IMAGE, card_result)
+                    else:  
+                        return Reply(ReplyType.TEXT, "抽牌异常🐾")
+                except Exception as e:
+                    return Reply(ReplyType.TEXT, f"抽牌失败：{e}")
             elif JieQianRequest(query):
                 # 解签
                 return Reply(ReplyType.TEXT, "签文都给你啦😾！你自己看看嘛~🐾") 

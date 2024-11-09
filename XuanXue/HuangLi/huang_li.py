@@ -117,7 +117,7 @@ def format_almanac(data: dict) -> str:
 
 def HuangLiRquest(query):
     # 定义占卜关键词列表
-    divination_keywords = ['黄历', "今日黄历"]
+    divination_keywords = ['黄历', '老黄历', '今日黄历']
     return any(keyword in query for keyword in divination_keywords)
 
 def GetHuangLi(api_key):  
