@@ -169,6 +169,7 @@ available_setting = {
     # 智谱AI 平台配置
     "zhipu_ai_api_key": "",
     "zhipu_ai_api_base": "https://open.bigmodel.cn/api/paas/v4",
+    "web_search": True,
     "moonshot_api_key": "",
     "moonshot_base_url": "https://api.moonshot.cn/v1/chat/completions",
     # LinkAI平台配置
@@ -341,6 +342,15 @@ def write_plugin_config(pconf: dict):
     global plugin_config
     for k in pconf:
         plugin_config[k.lower()] = pconf[k]
+
+def remove_plugin_config(name: str):
+    """
+    移除待重新加载的插件全局配置
+    :param name: 待重载的插件名
+    """
+    global plugin_config
+    plugin_config.pop(name.lower(), None)
+
 
 def remove_plugin_config(name: str):
     """

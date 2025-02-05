@@ -410,10 +410,16 @@ def send_image(self, fileDir=None, toUserName=None, mediaId=None, file_=None):
     logger.debug('Request to send a image(mediaId: %s) to %s: %s' % (
         mediaId, toUserName, fileDir))
     if fileDir or file_:
+        flag_gif = False
         if hasattr(fileDir, 'read'):
+            if fileDir.read(3) == b'GIF':
+                flag_gif = True
+            fileDir.seek(0)
             file_, fileDir = fileDir, None
         if fileDir is None:
-            fileDir = 'tmp.jpg' # specific fileDir to send gifs
+            fileDir = 'tmp.jpg'  # specific fileDir to send gifs
+        if flag_gif:
+            fileDir = 'tmp.gif'
     else:
         return ReturnValue({'BaseResponse': {
             'ErrMsg': 'Either fileDir or file_ should be specific',

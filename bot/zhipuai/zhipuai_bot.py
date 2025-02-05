@@ -21,10 +21,13 @@ class ZHIPUAIBot(Bot, ZhipuAIImage):
         super().__init__()
         self.sessions = SessionManager(ZhipuAISession, model=conf().get("model") or "ZHIPU_AI")
         self.args = {
-            "model": conf().get("model") or "glm-4",  # 对话模型的名称
+            "model": conf().get("model") or "glm-4-flash",  # 对话模型的名称
             "temperature": conf().get("temperature", 0.9),  # 值在(0,1)之间(智谱AI 的温度不能取 0 或者 1)
             "top_p": conf().get("top_p", 0.7),  # 值在(0,1)之间(智谱AI 的 top_p 不能取 0 或者 1)
         }
+
+        # 动态判断 web_search 配置
+        self.web_search_enabled = conf().get("web_search", False)
         self.client = ZhipuAI(api_key=conf().get("zhipu_ai_api_key"))
 
     def reply(self, query, context=None):
@@ -50,14 +53,20 @@ class ZHIPUAIBot(Bot, ZhipuAIImage):
             logger.debug("[ZHIPU_AI] session query={}".format(session.messages))
 
             api_key = context.get("openai_api_key") or openai.api_key
-            model = context.get("gpt_model")
-            new_args = None
-            if model:
-                new_args = self.args.copy()
-                new_args["model"] = model
             # if context.get('stream'):
             #     # reply in stream
             #     return self.reply_text_stream(query, new_query, session_id)
+
+            new_args = self.args.copy()
+            if self.web_search_enabled:
+                new_args['tools'] = [{
+                    "type": "web_search",
+                    "web_search": {
+                        # 根据配置设置为 True 或 False
+                        "enable": self.web_search_enabled,
+                        "search_query": context['content']
+                    }
+                }]
 
             reply_content = self.reply_text(session, api_key, args=new_args)
             logger.debug(
@@ -102,12 +111,12 @@ class ZHIPUAIBot(Bot, ZhipuAIImage):
             # if conf().get("rate_limit_chatgpt") and not self.tb4chatgpt.get_token():
             #     raise openai.error.RateLimitError("RateLimitError: rate limit exceeded")
             # if api_key == None, the default openai.api_key will be used
+
             if args is None:
                 args = self.args
-            # response = openai.ChatCompletion.create(api_key=api_key, messages=session.messages, **args)
+
+            logger.info("[ZHIPU_AI] args={}".format(args))
             response = self.client.chat.completions.create(messages=session.messages, **args)
-            # logger.debug("[ZHIPU_AI] response={}".format(response))
-            # logger.info("[ZHIPU_AI] reply={}, total_tokens={}".format(response.choices[0]['message']['content'], response["usage"]["total_tokens"]))
 
             return {
                 "total_tokens": response.usage.total_tokens,

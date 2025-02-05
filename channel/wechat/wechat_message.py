@@ -111,7 +111,7 @@ class WechatMessage(ChatMessage):
                 # 自身的展示名，当设置了群昵称时，该字段表示群昵称
                 self.self_display_name = itchat_msg["User"].get("Self").get("DisplayName")
         except KeyError as e:  # 处理偶尔没有对方信息的情况
-            logger.warn("[WX]get other_user_id failed: " + str(e))
+            # logger.warn("[WX]get other_user_id failed: " + str(e))
             if self.from_user_id == user_id:
                 self.other_user_id = self.to_user_id
             else:
