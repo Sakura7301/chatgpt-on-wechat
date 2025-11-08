@@ -106,13 +106,13 @@ cd chatgpt-on-wechat/
 **(2) 安装核心依赖 (必选)：**
 
 ```bash
-pip3 install -r requirements.txt
+pip3 install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 **(3) 拓展依赖 (可选，建议安装)：**
 
 ```bash
-pip3 install -r requirements-optional.txt
+pip3 install -r requirements-optional.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 如果某项依赖安装失败可注释掉对应的行后重试。
 
