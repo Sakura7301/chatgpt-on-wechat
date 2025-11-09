@@ -3,7 +3,7 @@ import time
 
 import web
 from wechatpy import parse_message
-from wechatpy.replies import ImageReply, VoiceReply, create_reply
+from wechatpy.replies import ImageReply, VoiceReply, VideoReply, create_reply
 import textwrap
 from bridge.context import *
 from bridge.reply import *
@@ -28,6 +28,7 @@ class Query:
             channel = WechatMPChannel()
             message = web.data()
             encrypt_func = lambda x: x
+            
             if args.get("encrypt_type") == "aes":
                 logger.debug("[wechatmp] Receive encrypted post data:\n" + message.decode("utf-8"))
                 if not channel.crypto:
@@ -36,7 +37,9 @@ class Query:
                 encrypt_func = lambda x: channel.crypto.encrypt_message(x, args.nonce, args.timestamp)
             else:
                 logger.debug("[wechatmp] Receive post data:\n" + message.decode("utf-8"))
+                
             msg = parse_message(message)
+            
             if msg.type in ["text", "voice", "image"]:
                 wechatmp_msg = WeChatMPMessage(msg, client=channel.client)
                 from_user = wechatmp_msg.from_user_id
@@ -45,16 +48,15 @@ class Query:
 
                 supported = True
                 if "【收到不支持的消息类型，暂无法显示】" in content:
-                    supported = False  # not supported, used to refresh
+                    supported = False
 
-                # New request
+                # ✅ 判断是否需要创建新任务
                 if (
                     channel.cache_dict.get(from_user) is None
                     and from_user not in channel.running
                     or content.startswith("#")
-                    and message_id not in channel.request_cnt  # insert the godcmd
+                    and message_id not in channel.request_cnt
                 ):
-                    # The first query begin
                     if msg.type == "voice" and wechatmp_msg.ctype == ContextType.TEXT and conf().get("voice_reply_voice", False):
                         context = channel._compose_context(wechatmp_msg.ctype, content, isgroup=False, desire_rtype=ReplyType.VOICE, msg=wechatmp_msg)
                     else:
@@ -62,6 +64,7 @@ class Query:
                     logger.debug("[wechatmp] context: {} {} {}".format(context, wechatmp_msg, supported))
 
                     if supported and context:
+                        logger.info(f"[wechatmp] 🚀 开始处理新任务: {from_user}")
                         channel.running.add(from_user)
                         channel.produce(context)
                     else:
@@ -90,8 +93,7 @@ class Query:
                         replyPost = create_reply(reply_text, msg)
                         return encrypt_func(replyPost.render())
 
-                # Wechat official server will request 3 times (5 seconds each), with the same message_id.
-                # Because the interval is 5 seconds, here assumed that do not have multithreading problems.
+                # 记录请求次数
                 request_cnt = channel.request_cnt.get(message_id, 0) + 1
                 channel.request_cnt[message_id] = request_cnt
                 logger.info(
@@ -100,43 +102,52 @@ class Query:
                     )
                 )
 
+                # ✅ 被动等待任务完成
                 task_running = True
-                waiting_until = request_time + 4
+                waiting_until = request_time + 4.5
+                
                 while time.time() < waiting_until:
                     if from_user in channel.running:
                         time.sleep(0.1)
                     else:
                         task_running = False
+                        logger.debug(f"[wechatmp] ✅ 任务已完成: {from_user}")
                         break
 
-                reply_text = ""
+                # ✅ 如果任务还在运行
                 if task_running:
+                    logger.debug(f"[wechatmp] ⏳ 任务处理中 (请求{request_cnt}次): {from_user}")
+                    
                     if request_cnt < 3:
-                        # waiting for timeout (the POST request will be closed by Wechat official server)
+                        # 前两次请求，返回 success，让微信继续重试
                         time.sleep(2)
-                        # and do nothing, waiting for the next request
                         return "success"
-                    else:  # request_cnt == 3:
-                        # return timeout message
-                        reply_text = "【正在思考中，回复任意文字尝试获取回复】"
+                    else:
+                        # 第3次及以后，返回友好提示
+                        reply_text = "⏳ 请求正在处理中~\n请稍等10秒后再发送任意文字获取结果"
                         replyPost = create_reply(reply_text, msg)
                         return encrypt_func(replyPost.render())
 
-                # reply is ready
-                channel.request_cnt.pop(message_id)
+                # ✅ 清理请求计数
+                if message_id in channel.request_cnt:
+                    del channel.request_cnt[message_id]
 
-                # no return because of bandwords or other reasons
+                # ✅ 检查是否有缓存结果
                 if from_user not in channel.cache_dict and from_user not in channel.running:
+                    logger.warning(f"[wechatmp] ⚠️ 没有缓存结果: {from_user}")
                     return "success"
 
-                # Only one request can access to the cached data
+                # ✅ 获取缓存结果
                 try:
                     (reply_type, reply_content) = channel.cache_dict[from_user].pop(0)
-                    if not channel.cache_dict[from_user]:  # If popping the message makes the list empty, delete the user entry from cache
+                    if not channel.cache_dict[from_user]:
                         del channel.cache_dict[from_user]
+                        logger.debug(f"[wechatmp] 🧹 清理缓存: {from_user}")
                 except IndexError:
+                    logger.warning(f"[wechatmp] ⚠️ 缓存为空: {from_user}")
                     return "success"
 
+                # ✅ 根据类型返回结果
                 if reply_type == "text":
                     if len(reply_content.encode("utf8")) <= MAX_UTF8_LEN:
                         reply_text = reply_content
@@ -166,11 +177,10 @@ class Query:
                     media_id = reply_content
                     asyncio.run_coroutine_threadsafe(channel.delete_media(media_id), channel.delete_media_loop)
                     logger.info(
-                        "[wechatmp] Request {} do send to {} {}: {} voice media_id {}".format(
+                        "[wechatmp] 🎤 发送语音 Request {} to {} {}: media_id {}".format(
                             request_cnt,
                             from_user,
                             message_id,
-                            content,
                             media_id,
                         )
                     )
@@ -182,16 +192,32 @@ class Query:
                     media_id = reply_content
                     asyncio.run_coroutine_threadsafe(channel.delete_media(media_id), channel.delete_media_loop)
                     logger.info(
-                        "[wechatmp] Request {} do send to {} {}: {} image media_id {}".format(
+                        "[wechatmp] 🖼️ 发送图片 Request {} to {} {}: media_id {}".format(
                             request_cnt,
                             from_user,
                             message_id,
-                            content,
                             media_id,
                         )
                     )
                     replyPost = ImageReply(message=msg)
                     replyPost.media_id = media_id
+                    return encrypt_func(replyPost.render())
+
+                elif reply_type == "video":
+                    media_id = reply_content
+                    asyncio.run_coroutine_threadsafe(channel.delete_media(media_id), channel.delete_media_loop)
+                    logger.info(
+                        "[wechatmp] 📹 发送视频 Request {} to {} {}: media_id {}".format(
+                            request_cnt,
+                            from_user,
+                            message_id,
+                            media_id,
+                        )
+                    )
+                    replyPost = VideoReply(message=msg)
+                    replyPost.media_id = media_id
+                    replyPost.title = "🎬视频 "  # 添加标题
+                    replyPost.description = "▶️点击播放精彩内容~"  # 添加描述
                     return encrypt_func(replyPost.render())
 
             elif msg.type == "event":
