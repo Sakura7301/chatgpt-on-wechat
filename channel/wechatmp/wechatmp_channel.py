@@ -123,7 +123,7 @@ class WechatMPChannel(ChatChannel):
                     logger.error("[wechatmp] upload image failed: {}".format(e))
                     return
                 media_id = response["media_id"]
-                logger.info("[wechatmp] image uploaded, receiver {}, media_id {}".format(receiver, media_id))
+                logger.debug("[wechatmp] image uploaded, receiver {}, media_id {}".format(receiver, media_id))
                 self.cache_dict[receiver].append(("image", media_id))
                 
             elif reply.type == ReplyType.IMAGE:  # 从文件读取图片

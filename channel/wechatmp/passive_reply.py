@@ -64,7 +64,7 @@ class Query:
                     logger.debug("[wechatmp] context: {} {} {}".format(context, wechatmp_msg, supported))
 
                     if supported and context:
-                        logger.info(f"[wechatmp] 🚀 开始处理新任务: {from_user}")
+                        logger.debug(f"[wechatmp] 🚀 开始处理新任务: {from_user}")
                         channel.running.add(from_user)
                         channel.produce(context)
                     else:
@@ -96,11 +96,18 @@ class Query:
                 # 记录请求次数
                 request_cnt = channel.request_cnt.get(message_id, 0) + 1
                 channel.request_cnt[message_id] = request_cnt
-                logger.info(
-                    "[wechatmp] Request {} from {} {} {}:{}\n{}".format(
-                        request_cnt, from_user, message_id, web.ctx.env.get("REMOTE_ADDR"), web.ctx.env.get("REMOTE_PORT"), content
+                if request_cnt < 2:
+                    logger.debug(
+                        "[wechatmp] Request {} from {} {} {}:{}\n{}".format(
+                            request_cnt, from_user, message_id, web.ctx.env.get("REMOTE_ADDR"), web.ctx.env.get("REMOTE_PORT"), content
+                        )
                     )
-                )
+                else:
+                    logger.info(
+                        "[wechatmp] Request {} from {} {} {}:{}\n{}".format(
+                            request_cnt, from_user, message_id, web.ctx.env.get("REMOTE_ADDR"), web.ctx.env.get("REMOTE_PORT"), content
+                        )
+                    )
 
                 # ✅ 被动等待任务完成
                 task_running = True
@@ -167,7 +174,7 @@ class Query:
                             from_user,
                             message_id,
                             content,
-                            reply_text,
+                            reply_text[:100],
                         )
                     )
                     replyPost = create_reply(reply_text, msg)
@@ -191,7 +198,7 @@ class Query:
                 elif reply_type == "image":
                     media_id = reply_content
                     asyncio.run_coroutine_threadsafe(channel.delete_media(media_id), channel.delete_media_loop)
-                    logger.info(
+                    logger.debug(
                         "[wechatmp] 🖼️ 发送图片 Request {} to {} {}: media_id {}".format(
                             request_cnt,
                             from_user,

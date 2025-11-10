@@ -451,7 +451,6 @@ class PluginManager:
                     
                     https_url = self._normalize_github_url(repo)
                     mirrors = [
-                        ("ghps.cc", f"https://ghps.cc/{https_url}"),
                         ("gh-proxy.com", f"https://gh-proxy.com/{https_url}"),
                         ("GitHub", https_url)
                     ]

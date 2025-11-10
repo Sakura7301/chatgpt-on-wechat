@@ -23,7 +23,7 @@ def _reset_logger(log):
             datefmt="%Y-%m-%d %H:%M:%S",
         )
     )
-    log.addHandler(file_handle)
+    # log.addHandler(file_handle)
     log.addHandler(console_handle)
 
 
