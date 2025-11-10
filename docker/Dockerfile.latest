@@ -6,19 +6,29 @@ ARG TZ='Asia/Shanghai'
 ARG CHATGPT_ON_WECHAT_VER
 
 RUN echo /etc/apt/sources.list
-# RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
+RUN sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list
 ENV BUILD_PREFIX=/app
 
 ADD . ${BUILD_PREFIX}
 
+# 安装基础依赖
 RUN apt-get update \
-    &&apt-get install -y --no-install-recommends bash ffmpeg espeak libavcodec-extra\
+    &&apt-get install -y --no-install-recommends bash ffmpeg espeak libavcodec-extra curl \
     && cd ${BUILD_PREFIX} \
     && cp config-template.json config.json \
-    && /usr/local/bin/python -m pip install --no-cache --upgrade pip \
-    && pip install --no-cache -r requirements.txt \
-    && pip install --no-cache -r requirements-optional.txt \
-    && pip install azure-cognitiveservices-speech
+    && python3 -m pip install --no-cache --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    && pip3 install --no-cache -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    && pip3 install --no-cache -r requirements-optional.txt -i https://pypi.tuna.tsinghua.edu.cn/simple \
+    && pip3 install --no-cache azure-cognitiveservices-speech -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# ⭐ 自动检测并安装 plugins 依赖
+RUN cd ${BUILD_PREFIX} \
+    && if [ -f docker/check_deps.py ]; then \
+        echo "🔍 检测 plugins 依赖..."; \
+        python3 docker/check_deps.py --auto-install || echo "⚠️ 依赖检测完成"; \
+    else \
+        echo "⚠️ check_deps.py 不存在，跳过依赖检测"; \
+    fi
 
 WORKDIR ${BUILD_PREFIX}
 
