@@ -36,3 +36,4 @@ plugins/banwords/lib/__pycache__
 !plugins/agent
 client_config.json
 log/
+mock_wechat_*
