@@ -115,10 +115,24 @@ def scan_plugins_dir(plugins_dir: str = 'plugins') -> Set[str]:
     
     return all_imports
 
-
 def filter_third_party_modules(imports: Set[str]) -> Set[str]:
     """过滤出第三方模块（排除标准库和项目模块）"""
     third_party = set()
+    
+    # 获取 plugins 目录下的所有子目录名和模块名
+    plugins_dir = 'plugins' if os.path.exists('plugins') else '../plugins'
+    plugin_dirs = {d.name for d in Path(plugins_dir).iterdir() if d.is_dir()}
+    plugin_modules = set()
+    
+    # 递归获取插件目录下所有子模块名
+    for plugin_dir in plugin_dirs:
+        plugin_path = Path(plugins_dir) / plugin_dir
+        for py_file in plugin_path.rglob('*.py'):
+            if py_file.stem != '__init__':
+                plugin_modules.add(py_file.stem)
+    
+    # 这些词可能是常见项目内部模块，不是 PyPI 包
+    common_internal = {'main', 'plugin', 'utils', 'config', 'event', 'player', 'core', 'manager', 'summary', 'tool', 'shop'}
     
     for module in imports:
         # 跳过标准库
@@ -130,11 +144,19 @@ def filter_third_party_modules(imports: Set[str]) -> Set[str]:
         # 跳过私有模块
         if module.startswith('_'):
             continue
+        # 跳过插件目录名
+        if module in plugin_dirs:
+            continue
+        # 跳过插件子模块名
+        if module in plugin_modules:
+            continue
+        # 跳过常见内部模块名
+        if module in common_internal:
+            continue
         
         third_party.add(module)
     
     return third_party
-
 
 def check_missing_packages(modules: Set[str]) -> List[str]:
     """检查哪些包未安装"""
